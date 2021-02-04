@@ -18,7 +18,10 @@ GUILD = os.getenv('DISCORD_GUILD')
 bot = commands.Bot(command_prefix = '!')
 
 #define the ever-growing list of horny words that will result in a warning from hornyBot
-horny_words = ['sex', 'fuck', 'sexy', 'suck', 'dick', 'ass', 'butt', 'fucking', 'horny', 'hot', 'hawt', 'hard', 'wet', 'thirsty']
+horny_words = ['sex', 'fuck', 'sexy', 'suck', 'dick', 'ass', 'butt', 'fucking', 'horny', 'hot', 'hawt', 'hard', 'wet', 'thirsty', 'fucked', 'nail', 'nailed']
+
+#define the dictionary that will be used to automatically imprison users when their number is up
+warned_users = {}
 
 #create the !imprison commands, which allows users to place other users into Horny Jail when they're being horny
 @bot.command(pass_context=True)
@@ -27,11 +30,11 @@ async def imprison(ctx, *, user: discord.Member):
     guild = ctx.guild
     #capture and define the HornyJail role so that it can be assigned to users
     role = discord.utils.get(guild.roles, name='HornyJail')
-    #check to see if the user in question is already in Horny Jail, and if they are, send a message informing everyone that they are already imprisoned
+    #stops users from putting hornyBot in jail
     if user.display_name == 'hornyBot':
         await ctx.send('I\'m a god. How can you kill a god?')
         return
-
+    #check to see if the user in question is already in Horny Jail, and if they are, send a message informing everyone that they are already imprisoned
     if role in user.roles:
         await ctx.send(f'{user.display_name} is already being punished for their horny sins.')
     #if user is not in Horny Jail, they are placed there swiftly and effectively
@@ -47,7 +50,8 @@ async def free(ctx, *, user: discord.Member):
     #capture and define the HornyJail role so that it can be assigned to users
     role = discord.utils.get(guild.roles, name='HornyJail')
 
-    if user.display_name == ctx.author.name:
+    #checks to see if the user that invoked the !free command is trying to free themselves, which is not allowed.
+    if user.id == ctx.author.id:
         await ctx.send('What, you think you can break your way out of here? You will be released when you\'ve learned to control your carnal instincts.')
         return
     #check to see if user is in Horny Jail. if they aren't, a message is displayed explaining that they cannot be freed if they are not imprisoned for horny crimes
@@ -101,6 +105,9 @@ async def on_ready():
 async def on_message(message):
     #tells the bot to pay attention to commands before trying to do anything with the message content
     await bot.process_commands(message)
+    guild = message.guild
+    role = discord.utils.get(guild.roles, name='HornyJail')
+    channel = message.channel
     #redefines the list of warnings that can be given since there are slight differences in how the user is referred to. (I'm sure there's a better way to do this, but I don't know what it is)
     warning_list = [
     f'Careful, {message.author.display_name}... you\'re being awful horny.',
@@ -121,12 +128,24 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
+
     #checks to see if this code will execute at all. If it does, it will scan the content of the message to see if there are horny words in it. if there are, a warning is issued to the user
-    #reinspect this logic to see if ther's a different way to do this
-    if chance == 1:
+    if chance == 1 and role not in message.author.roles:
         if any(word in message.content.lower() for word in horny_words):
             await message.channel.send(random.choice(warning_list))
-            return
+            #code that will put users in horny jail automatically if they have been warned twice previously previously
+            if  message.author.display_name not in warned_users:
+                warned_users[message.author.display_name] = 1
+                #outputs warned users to shell just for fun
+                print(warned_users)
+                return
+            else:
+                warned_users[message.author.display_name] = warned_users[message.author.display_name] + 1
+                if (warned_users[message.author.display_name] % 3) == 0:
+                    await message.author.add_roles(role)
+                    print(warned_users)
+                    await channel.send(f'That\'s it, {message.author.display_name}! You\'ve popped your last boner!!')
+                    return
         else:
             return
 
